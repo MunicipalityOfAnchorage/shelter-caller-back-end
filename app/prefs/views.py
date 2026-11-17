@@ -6,7 +6,7 @@ from ..models import User
 
 
 def isAdmin(user):
-    db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
+    db_user = User.query.options(joinedload(User.roles)).filter_by(username=user).first()
     if db_user is None:
         return False
     return any(role.name == 'admin' for role in db_user.roles)

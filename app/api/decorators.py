@@ -24,7 +24,7 @@ def role_required(allowed_roles):
         def decorated_function(*args, **kwargs):
             user = jwt.get_jwt_identity()
 
-            db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
+            db_user = User.query.options(joinedload(User.roles)).filter_by(username=user).first()
             if db_user is None:
                 raise UnauthorizedUse('Permission denied', 403)
             # make user object available to routes on flask.g
@@ -44,7 +44,7 @@ def add_user():
         def decorated_function(*args, **kwargs):
             user = jwt.get_jwt_identity()
             if user:
-                db_user = User.query.options(joinedload('roles')).filter_by(username=user).first()
+                db_user = User.query.options(joinedload(User.roles)).filter_by(username=user).first()
                 # make user object available to routes on flask.g
                 g.user = db_user
             return f(*args, **kwargs)

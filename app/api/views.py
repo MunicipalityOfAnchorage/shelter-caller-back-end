@@ -217,6 +217,7 @@ def counthistory(page):
     ).alias('gen_day')
 
     time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.personcount).label('data'))\
+        .select_from(Shelter)\
         .join(date_list, true())\
         .outerjoin(Count, (Count.day == column('gen_day')) & (Count.shelter_id == Shelter.id))
 

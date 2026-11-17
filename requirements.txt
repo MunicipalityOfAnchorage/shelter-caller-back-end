@@ -1,24 +1,35 @@
-# Pin Flask to the last version that supports flask-jwt-simple
+# Pinned to the exact versions that were running in production (App Engine
+# version v2-test, deployed Dec 28, 2025) so that a redeploy changes nothing
+# unintentionally. Bump deliberately, one at a time, and run the tests.
+
+# Flask is pinned to the last line that supports flask-jwt-simple
 Flask==2.2.5
 Werkzeug==2.2.3
-
-# These libraries usually need to be pinned to match the older Flask
 Jinja2==3.1.2
 itsdangerous==2.1.2
-Click==8.1.3
+click==8.1.3
 
-# Your specific libraries
-flask-cors
-flask-sqlalchemy
-flask-migrate
-flask-wtf
-flask-jwt-simple
+SQLAlchemy==2.0.45
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+alembic==1.17.2
+psycopg2-binary==2.9.11
+
+Flask-Cors==6.0.2
+Flask-WTF==1.2.2
+WTForms==3.2.1
+flask-jwt-simple==0.0.3
 PyJWT==1.7.1
-flask-csv
-pendulum
-requests
-gunicorn
+Flask-CSV==1.2.1
+pendulum==3.1.0
+requests==2.32.5
+gunicorn==23.0.0
 
-
-# Use the binary version to avoid compile errors
-psycopg2-binary
+# Indirect dependencies, held at the deployed versions
+marshmallow==4.1.2
+csvalidate==1.1.2
+Mako==1.3.10
+MarkupSafe==3.0.3
+greenlet==3.3.0
+python-dateutil==2.9.0.post0
+tzdata==2025.3

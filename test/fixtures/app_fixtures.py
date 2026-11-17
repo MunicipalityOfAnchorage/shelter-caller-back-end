@@ -28,11 +28,12 @@ db_environ = {
 @pytest.fixture
 def client():
     _app = create_app('testing')
-    db.create_all(app=_app)
     register_blueprints(_app)
     with _app.app_context():
+        db.create_all()
         yield _app
-    db.drop_all(app=_app)
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture

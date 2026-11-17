@@ -7,19 +7,19 @@ fake_counts = [
     {
         'bedcount': 100,
         'personcount': 20,
-        'day': date.today().isoformat(),
+        'day': date.today(),
         'shelter_id': 1
     },
     {
         'bedcount': 31,
         'personcount': 20,
-        'day': (date.today() - timedelta(days=1)).isoformat(),
+        'day': (date.today() - timedelta(days=1)),
         'shelter_id': 1
     },
     {
         'bedcount': 32,
         'personcount': 10,
-        'day': (date.today() - timedelta(days=1)).isoformat(),
+        'day': (date.today() - timedelta(days=1)),
         'shelter_id': 2
     }
 ]

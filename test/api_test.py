@@ -209,3 +209,26 @@ def test_delete_count(app_with_envion_DB, counts):
     count = Count.query.filter_by(day=yesterday, shelter_id=1).first()
     assert rv.status_code == 200
     assert count is None
+
+
+def test_counthistory(app_with_envion_DB, counts):
+    '''Count history should return 14 dates and one series per visible, public shelter'''
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/api/counthistory/')
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert len(data['dates']) == 14
+    assert len(data['shelters']) > 0
+    for shelter in data['shelters']:
+        assert len(shelter['data']) == 14
+
+
+def test_export(app_with_envion_DB, counts):
+    '''CSV export should return every count'''
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/api/k1/export/')
+    assert rv.status_code == 200
+    lines = rv.get_data(as_text=True).strip().splitlines()
+    assert len(lines) == 4  # header + three counts
+    rv = client.get('/api/k2/export/')
+    assert rv.status_code == 200
