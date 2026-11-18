@@ -232,3 +232,44 @@ def test_export(app_with_envion_DB, counts):
     assert len(lines) == 4  # header + three counts
     rv = client.get('/api/k2/export/')
     assert rv.status_code == 200
+
+
+def test_admin_login_upgrades_plaintext_password(app_with_envion_DB):
+    '''A plain-text password should be replaced with a hash on the first good login'''
+    from app.models import User
+    client = app_with_envion_DB.test_client()
+    assert User.query.filter_by(username='admin').first().password == 'password'
+
+    rv = client.post('/api/admin_login/', json={"user": "admin", "password": "password"})
+    assert rv.status_code == 200
+    stored = User.query.filter_by(username='admin').first().password
+    assert stored != 'password'
+    assert stored.startswith(('pbkdf2:', 'scrypt:'))
+
+    # the hashed password still works, and a wrong one is still refused
+    rv = client.post('/api/admin_login/', json={"user": "admin", "password": "password"})
+    assert rv.status_code == 200
+    rv = client.post('/api/admin_login/', json={"user": "admin", "password": "bad_password"})
+    assert rv.status_code == 401
+
+
+def test_admin_login_hash_is_not_a_password(app_with_envion_DB):
+    '''Someone who obtains the stored hash must not be able to log in with it'''
+    from app.models import User
+    client = app_with_envion_DB.test_client()
+    client.post('/api/admin_login/', json={"user": "admin", "password": "password"})
+    stored = User.query.filter_by(username='admin').first().password
+    rv = client.post('/api/admin_login/', json={"user": "admin", "password": stored})
+    assert rv.status_code == 401
+
+
+def test_counthistory_values_line_up_with_dates(app_with_envion_DB, counts):
+    '''Each shelter's data should be in the same order as the dates'''
+    from datetime import date, timedelta
+    client = app_with_envion_DB.test_client()
+    data = client.get('/api/counthistory/').get_json()
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    by_day = {s['label']: dict(zip(data['dates'], s['data'])) for s in data['shelters']}
+    values = sorted(str(v.get(today)) + '/' + str(v.get(yesterday)) for v in by_day.values())
+    assert values == ['20/20', 'None/10']

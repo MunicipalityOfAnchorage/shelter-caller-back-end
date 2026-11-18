@@ -327,3 +327,22 @@ def test_validate_time_log(pend_mock, app_with_envion_DB, test_shelters):
     assert log.shelter_id == test_shelter['id']
     assert log.from_number == phone
     assert log.parsed_text == str(data['numberOfPeople'])
+
+
+@patch('urllib.request.urlopen')
+def test_start_call_continues_after_failure(mockObj, app_with_envion_DB, test_shelters):
+    '''A Twilio error for one shelter should not stop the calls to the rest'''
+    import urllib.error
+    for s in test_shelters:
+        db.session.add(Shelter(**s))
+    db.session.commit()
+    mockObj.side_effect = urllib.error.HTTPError(twil_url, 400, 'Bad Request', None, None)
+
+    client = app_with_envion_DB.test_client()
+    rv = client.get('/twilio/start_call/')
+
+    assert rv.status_code == 449
+    assert mockObj.call_count == len(test_shelters)
+    logs = Log.query.all()
+    assert len(logs) == len(test_shelters)
+    assert all(log.error and log.error.startswith('Could not start call') for log in logs)

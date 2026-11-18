@@ -1,15 +1,18 @@
+import hmac
 import os
 from flask_csv import send_csv
 import logging
 import pendulum
 from pendulum.exceptions import ParserError
 from sqlalchemy import Date
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import cast, true
 from sqlalchemy.sql import func, column
 from . import api
 
 from flask import request, jsonify, g
+from werkzeug.security import check_password_hash, generate_password_hash
 from flask_jwt_simple import jwt_required, create_jwt, jwt_optional
 from .forms import newShelterForm
 from ..models import db, Shelter, Count, Log, User
@@ -26,6 +29,25 @@ TEMP_PUBLIC_EXPORT_KEY = os.environ['TEMP_PUBLIC_EXPORT_KEY']
 ##############
 #    AUTH    #
 ##############
+HASH_PREFIXES = ('pbkdf2:', 'scrypt:')
+
+
+def _password_matches(db_user, password):
+    """
+    Check a login password against the stored value.
+    Passwords are stored hashed. A row that still holds an old plain-text
+    password is accepted once and replaced with its hash on that login.
+    """
+    stored = db_user.password or ''
+    if stored.startswith(HASH_PREFIXES):
+        return check_password_hash(stored, password)
+    if hmac.compare_digest(stored.encode(), password.encode()):
+        db_user.password = generate_password_hash(password)
+        db.session.commit()
+        return True
+    return False
+
+
 @api.route('/admin_login/', methods=['POST'])
 def login():
     '''
@@ -54,7 +76,7 @@ def login():
         raise InvalidUsage("Missing password paramter")
 
     db_user = User.query.filter_by(username=user).first()
-    if not db_user or db_user.password != password:
+    if not db_user or not _password_matches(db_user, password):
         raise UnauthorizedUse()
     roles = [role.name for role in db_user.roles]
     return jsonify(jwt=create_jwt(identity=user), roles=roles), 200
@@ -216,7 +238,8 @@ def counthistory(page):
         '1 day'
     ).alias('gen_day')
 
-    time_series = db.session.query(Shelter.name.label('label'), func.array_agg(Count.personcount).label('data'))\
+    time_series = db.session.query(Shelter.name.label('label'), func.array_agg(
+            aggregate_order_by(Count.personcount, column('gen_day'))).label('data'))\
         .select_from(Shelter)\
         .join(date_list, true())\
         .outerjoin(Count, (Count.day == column('gen_day')) & (Count.shelter_id == Shelter.id))

@@ -5,6 +5,7 @@ import logging
 import os
 import pendulum
 import re
+import urllib.error
 import urllib.request
 import urllib.parse
 from flask import request, jsonify, Response
@@ -78,10 +79,12 @@ def startcall():
         (Count.shelter_id == Shelter.id) & (Count.day == cast(today, Date)))\
         .filter((Count.day == None) & (Shelter.active == True) & (Shelter.phone != None) & (Shelter.phone != ''))
 
-    if uncontacted.count() == 0:
+    # Load the list up front so a commit inside the loop can't disturb it
+    shelters = uncontacted.all()
+    if len(shelters) == 0:
         return jsonify({"success": True})
 
-    for shelter in uncontacted:
+    for shelter in shelters:
         id = shelter.id
         route = {"To": shelter.phone,
                  "From": "+19073121978",
@@ -89,14 +92,24 @@ def startcall():
 
         data = urllib.parse.urlencode(route).encode()
 
-        with urllib.request.urlopen(flowURL, data) as f:
-            logging.info("Twilio Return Code: %d" % f.getcode())
-
-        log = Log(
-            shelter_id=id,
-            from_number='+19073121978',
-            contact_type='outgoing_call',
-            action="initialize call")
+        # One shelter's call failing (bad number, Twilio error, timeout)
+        # must not stop the calls to the shelters after it.
+        try:
+            with urllib.request.urlopen(flowURL, data) as f:
+                logging.info("Twilio Return Code: %d" % f.getcode())
+            log = Log(
+                shelter_id=id,
+                from_number='+19073121978',
+                contact_type='outgoing_call',
+                action="initialize call")
+        except (urllib.error.URLError, OSError) as e:
+            logging.error("Could not start Twilio call for shelter %s: %s" % (id, e))
+            log = Log(
+                shelter_id=id,
+                from_number='+19073121978',
+                contact_type='outgoing_call',
+                action="initialize call",
+                error="Could not start call: %s" % str(e)[:200])
 
         db.session.add(log)
         db.session.commit()
