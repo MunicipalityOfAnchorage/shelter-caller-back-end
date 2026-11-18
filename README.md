@@ -25,17 +25,12 @@ Install dependencies
 pip install -r requirements.txt
 ```
 
-If deploying to app engine, install dependencies in /lib
-```
-pip install -t lib -r requirements.txt
-```
-
 ## Environment
 The app will expect to find several environmental variables the define behavior, api tokens, and DB connections. When running in production on App Engine these will be defined in `app_env.yaml`. See `app_env_black.yaml` for a list of expected variables. These variables are also needed in development. A nice way to handle this is to place the definitions in a `config.sh` file outside the repro and load them with `source ../path_to_config.sh. 
 
 ## Setting up database
 The app will expect to have a PostgreSQL database. This can be installed locally, in docker container, or on Google Cloud using 
-Cloud SQL Proxy (https://cloud.google.com/sql/docs/mysql/sql-proxy)
+Cloud SQL Proxy (https://cloud.google.com/sql/docs/postgres/sql-proxy)
 
 The app will expect to find an env named: `SQLALCHEMY_DATABASE_URI` that is a connection string to the database. 
 
