@@ -316,7 +316,7 @@ def set_count():
             parsed_text="")
         ret = {"personcount": None, "bedcount": None, "shelterID": shelterID}
     else:
-        shelter = Shelter.query.get(int(shelterID))
+        shelter = db.session.get(Shelter, int(shelterID))
         count = Count(
             shelter_id=shelterID,
             personcount=personcount,
@@ -362,7 +362,7 @@ def export():
     counts = db.session.query(Count)\
         .join(Shelter, Shelter.id == Count.shelter_id)\
         .order_by(Count.day)\
-        .values(
+        .with_entities(
             Count.shelter_id,
             Count.bedcount,
             Count.personcount,
@@ -390,7 +390,7 @@ def export_public():
         .join(Shelter, Shelter.id == Count.shelter_id)\
         .order_by(Count.day)\
         .filter(Shelter.public)\
-        .values(
+        .with_entities(
             Count.shelter_id,
             Count.bedcount,
             Count.personcount,

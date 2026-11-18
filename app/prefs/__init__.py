@@ -18,7 +18,7 @@ class __Prefs:
         '''
         self.defaults = defaults()
         with app.app_context():
-            prefs = Pref.query.get(self.defaults['app_id'])
+            prefs = db.session.get(Pref, self.defaults['app_id'])
             if prefs is None:
                 prefs = Pref(**self.defaults)
                 db.session.add(prefs)
@@ -27,19 +27,19 @@ class __Prefs:
     def __getitem__(self, name):
         if name not in self.defaults:
             raise KeyError
-        prefs = Pref.query.get(self.defaults['app_id'])
+        prefs = db.session.get(Pref, self.defaults['app_id'])
         return getattr(prefs, name)
 
     def __setitem__(self, name, value):
         if name not in self.defaults:
             raise KeyError
-        prefs = Pref.query.get(self.defaults['app_id'])
+        prefs = db.session.get(Pref, self.defaults['app_id'])
         setattr(prefs, name, value)
         db.session.add(prefs)
         db.session.commit()
 
     def update(self, d):
-        prefs = Pref.query.get(self.defaults['app_id'])
+        prefs = db.session.get(Pref, self.defaults['app_id'])
         for k in d:
             if k not in self.defaults:
                 raise KeyError(k)
@@ -48,7 +48,7 @@ class __Prefs:
         db.session.commit()
 
     def toDict(self):
-        prefs = Pref.query.get(self.defaults['app_id'])
+        prefs = db.session.get(Pref, self.defaults['app_id'])
         return prefs.toDict()
 
 

@@ -240,7 +240,7 @@ def collect():
         if pendulum.now(Prefs['timezone']).time() > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']).time():
             today = today.add(days=1)
 
-        shelter = Shelter.query.get(int(shelterID))
+        shelter = db.session.get(Shelter, int(shelterID))
         # TODO handle error if shelter is not found
         count = Count(
             shelter_id=shelterID,

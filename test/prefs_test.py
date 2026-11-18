@@ -1,6 +1,6 @@
 from unittest.mock import patch
 from app.prefs import Prefs
-from app.models import Pref
+from app.models import Pref, db
 from flask_jwt_simple import create_jwt
 from .fixtures.app_fixtures import environ, db_environ
 
@@ -20,7 +20,7 @@ def test_prefs_set_DB(app_with_envion):
     '''Setting item on Prefs instacne should set DB value '''
     Prefs['timezone'] = "testVal2"
     Prefs['start_day'] = "10:00"
-    p = Pref.query.get(environ['APP_NAME'])
+    p = db.session.get(Pref, environ['APP_NAME'])
     assert p.timezone == 'testVal2'
     assert p.start_day == '10:00'
 
