@@ -13,4 +13,6 @@ env_variables:
   ADMIN_USER:                                                     # Root Admin User
   ADMIN_PW:                                                       # Root Admin Password
   SECRET_KEY:                                                     # Used by Flask for signing cookies, etc
+  TEMP_EXPORT_KEY:                                                # secret path token: /api/<key>/export/ returns a CSV of all counts
+  TEMP_PUBLIC_EXPORT_KEY:                                         # secret path token: /api/<key>/export/ returns a CSV of counts for public shelters only
   FLASK_CONFIG: 'production'
