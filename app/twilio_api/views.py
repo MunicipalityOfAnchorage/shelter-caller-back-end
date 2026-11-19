@@ -1,5 +1,5 @@
 from . import twilio_api
-from ..models import Shelter, db, Count, Log
+from ..models import Shelter, db, Count, Log, free_beds
 from ..prefs import Prefs
 import logging
 import os
@@ -234,18 +234,26 @@ def collect():
         input = text
         if len(numbers) == 1:
             personcount = numbers[0]
+    error = "bad input"
+    shelter = None
     if personcount and personcount.isdigit() and shelterID:
+        if str(shelterID).isdigit():
+            shelter = db.session.get(Shelter, int(shelterID))
+        if shelter is None:
+            # Don't point the log row at a shelter that doesn't exist
+            error = "unknown shelter id: %s" % str(shelterID)[:50]
+            shelterID = None
+
+    if shelter is not None:
         today = pendulum.today(Prefs['timezone'])
         # set the cutoff where calls count toward the next day
         if pendulum.now(Prefs['timezone']).time() > pendulum.parse(Prefs['start_day'], tz=Prefs['timezone']).time():
             today = today.add(days=1)
 
-        shelter = db.session.get(Shelter, int(shelterID))
-        # TODO handle error if shelter is not found
         count = Count(
             shelter_id=shelterID,
             personcount=personcount,
-            bedcount=shelter.capacity - int(personcount),
+            bedcount=free_beds(shelter, personcount),
             day=today.isoformat(),
             time=func.now())
 
@@ -273,7 +281,7 @@ def collect():
         from_number=fromPhone,
         contact_type=contact_type,
         input_text=input,
-        error="bad input",
+        error=error,
         action="save_count", parsed_text=personcount)
 
     try:

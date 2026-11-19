@@ -30,6 +30,17 @@ class Shelter(db.Model):
         return '<Shelter %r>' % self.name
 
 
+def free_beds(shelter, personcount):
+    '''
+    Beds left at a shelter given the number of people reported.
+    A shelter saved without a capacity has no known free beds, so this is 0
+    (counts.bedcount is NOT NULL) instead of an error that loses the report.
+    '''
+    if shelter.capacity is None:
+        return 0
+    return shelter.capacity - int(personcount)
+
+
 class Count(db.Model):
     __tablename__ = 'counts'
     bedcount = db.Column(db.Integer, nullable=False)

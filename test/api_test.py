@@ -273,3 +273,50 @@ def test_counthistory_values_line_up_with_dates(app_with_envion_DB, counts):
     by_day = {s['label']: dict(zip(data['dates'], s['data'])) for s in data['shelters']}
     values = sorted(str(v.get(today)) + '/' + str(v.get(yesterday)) for v in by_day.values())
     assert values == ['20/20', 'None/10']
+
+
+def test_set_count_shelter_without_capacity(app_with_envion_DB, test_shelters):
+    '''An admin should be able to set a count for a shelter saved without a capacity'''
+    db.session.add(Shelter(**dict(test_shelters[0], capacity=None)))
+    db.session.commit()
+    client = app_with_envion_DB.test_client()
+    jwt = create_jwt(identity='admin')
+    rv = client.post(
+        '/api/setcount/',
+        json={"numberOfPeople": 7, "shelterID": 1, "day": date.today()},
+        headers={"Authorization": "Bearer " + jwt}
+    )
+    assert rv.status_code == 200
+    count = Count.query.filter_by(shelter_id=1).one()
+    assert count.personcount == 7
+    assert count.bedcount == 0
+
+
+def test_set_count_unknown_shelter(app_with_envion_DB):
+    '''Setting a count for a shelter that doesn't exist should be refused, not crash'''
+    client = app_with_envion_DB.test_client()
+    jwt = create_jwt(identity='admin')
+    rv = client.post(
+        '/api/setcount/',
+        json={"numberOfPeople": 7, "shelterID": 4242, "day": date.today()},
+        headers={"Authorization": "Bearer " + jwt}
+    )
+    assert rv.status_code == 404
+    assert Count.query.count() == 0
+
+
+def test_update_shelter_without_phone(app_with_envion_DB):
+    '''The admin form sends an empty phone as the text "null"; two such shelters must both save with no phone'''
+    client = app_with_envion_DB.test_client()
+    jwt = create_jwt(identity='admin')
+    for n, phone in enumerate(('null', 'undefined', ''), start=1):
+        rv = client.post(
+            '/api/update_shelter/',
+            data={"name": f"no phone {n}", "login_id": 7000 + n, "capacity": 20, "phone": phone,
+                  "description": "null", "active": "true", "visible": "true", "public": "true"},
+            headers={"Authorization": "Bearer " + jwt}
+        )
+        assert rv.status_code == 200
+    shelters = Shelter.query.all()
+    assert len(shelters) == 3
+    assert all(s.phone is None and s.description is None for s in shelters)

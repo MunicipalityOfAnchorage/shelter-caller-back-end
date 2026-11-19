@@ -346,3 +346,34 @@ def test_start_call_continues_after_failure(mockObj, app_with_envion_DB, test_sh
     logs = Log.query.all()
     assert len(logs) == len(test_shelters)
     assert all(log.error and log.error.startswith('Could not start call') for log in logs)
+
+
+def test_save_count_shelter_without_capacity(app_with_envion_DB, test_shelters):
+    '''A shelter saved without a capacity should still have its count recorded'''
+    test_shelter = dict(test_shelters[0], capacity=None)
+    db.session.add(Shelter(**test_shelter))
+    db.session.commit()
+    client = app_with_envion_DB.test_client()
+
+    rv = client.post('/twilio/save_count/', data={'numberOfPeople': 12, 'shelterID': test_shelter['id']})
+    assert rv.status_code == 200
+    assert json.loads(rv.data)['success'] == True
+    count = db.session.query(Count).one()
+    assert count.personcount == 12
+    assert count.bedcount == 0
+
+
+def test_save_count_unknown_shelter(app_with_envion_DB):
+    '''A count for a shelter id that doesn't exist should fail cleanly and be logged'''
+    client = app_with_envion_DB.test_client()
+
+    for shelter_id in ('4242', 'abc'):
+        rv = client.post('/twilio/save_count/', data={'numberOfPeople': 12, 'shelterID': shelter_id, 'tries': 1})
+        assert rv.status_code == 200
+        res = json.loads(rv.data)
+        assert res['success'] == False
+        assert res['tries'] == 2
+    assert db.session.query(Count).count() == 0
+    logs = db.session.query(Log).all()
+    assert len(logs) == 2
+    assert all(log.shelter_id is None and 'unknown shelter' in log.error for log in logs)

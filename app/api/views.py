@@ -15,7 +15,7 @@ from flask import request, jsonify, g
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_jwt_simple import jwt_required, create_jwt, jwt_optional
 from .forms import newShelterForm
-from ..models import db, Shelter, Count, Log, User
+from ..models import db, Shelter, Count, Log, User, free_beds
 from ..prefs import Prefs
 from .decorators import role_required, add_user
 from app.exceptions import InvalidUsage, UnauthorizedUse, ServerError
@@ -112,6 +112,20 @@ def delete_shelter(shelter_id):
     return '', 204
 
 
+def _blank_to_none(value):
+    '''
+    The admin page posts its shelter form as FormData, which turns an empty
+    field into the text "null" or "undefined". Store those, and blanks, as NULL
+    so a shelter with no phone doesn't get the phone number "null".
+    '''
+    if value is None:
+        return None
+    value = value.strip()
+    if value.lower() in ('', 'null', 'undefined'):
+        return None
+    return value
+
+
 @api.route('/update_shelter/', methods=['POST'])
 @jwt_required
 @role_required(['admin'])
@@ -126,8 +140,8 @@ def update_shelter():
     shelter = {}
     shelter['id'] = form.id.data
     shelter['name'] = form.name.data
-    shelter['description'] = form.description.data
-    shelter['phone'] = form.phone.data or None
+    shelter['description'] = _blank_to_none(form.description.data)
+    shelter['phone'] = _blank_to_none(form.phone.data)
     shelter['login_id'] = form.login_id.data
     shelter['capacity'] = form.capacity.data
     shelter['active'] = form.active.data
@@ -316,11 +330,17 @@ def set_count():
             parsed_text="")
         ret = {"personcount": None, "bedcount": None, "shelterID": shelterID}
     else:
-        shelter = db.session.get(Shelter, int(shelterID))
+        try:
+            shelter = db.session.get(Shelter, int(shelterID))
+            int(personcount)
+        except (TypeError, ValueError):
+            raise InvalidUsage("Shelter and count must be numbers", status_code=400)
+        if shelter is None:
+            raise InvalidUsage("Unknown shelter", status_code=404)
         count = Count(
             shelter_id=shelterID,
             personcount=personcount,
-            bedcount=shelter.capacity - int(personcount),
+            bedcount=free_beds(shelter, personcount),
             day=parsed_day.isoformat(),
             time=func.now()
         )
